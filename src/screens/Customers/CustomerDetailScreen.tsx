@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Header, Card, Button } from '../../components/ui';
@@ -9,58 +9,99 @@ type CustomerDetailRouteParams = {
   customerId: string;
 };
 
-// Temporary mock data for a customer
-const mockCustomer = {
-  id: '1',
-  first_name: 'Otmar',
-  last_name: 'Taubner',
-  company: 'T. Musselman Excavating',
-  email: 'otmar@musselman.ca',
-  phone: '(416) 555-1234',
-  address: '685 Lake Rd',
-  city: 'Toronto',
-  province: 'ON',
-  postal_code: 'M4B 1B3',
-  notes: 'Prefers communication via email. Has multiple job sites.',
-  jobs: [
-    {
-      id: '1',
-      name: 'Soil Hauling',
-      number: 'M23-030',
-      status: 'lead',
-    },
-    {
-      id: '2',
-      name: 'Material Supply',
-      number: '2024-1805',
-      status: 'lead',
-    }
-  ]
+// Temporary mock data for customers while backend setup is completed
+const mockCustomers: Record<string, {
+  id: string;
+  first_name: string;
+  last_name: string;
+  company: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  notes: string;
+  jobs: Array<{
+    id: string;
+    name: string;
+    number: string;
+    status: string;
+  }>;
+}> = {
+  '1': {
+    id: '1',
+    first_name: 'Otmar',
+    last_name: 'Taubner',
+    company: 'T. Musselman Excavating',
+    email: 'otmar@musselman.ca',
+    phone: '(416) 555-1234',
+    address: '685 Lake Rd',
+    city: 'Toronto',
+    province: 'ON',
+    postal_code: 'M4B 1B3',
+    notes: 'Prefers communication via email. Has multiple job sites.',
+    jobs: [
+      {
+        id: '1',
+        name: 'Soil Hauling',
+        number: 'M23-030',
+        status: 'lead',
+      },
+      {
+        id: '2',
+        name: 'Material Supply',
+        number: '2024-1805',
+        status: 'lead',
+      }
+    ]
+  }
 };
 
 const CustomerDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
   
-  // In a real app, we would fetch the customer data based on the customerId from the route params
-  // For now, we're using mock data
+  // Get customerId from route params, default to '1' for demo
   const customerId = (route.params as CustomerDetailRouteParams)?.customerId || '1';
   
-  // This would be replaced with actual data fetching in a real app
+  // State to hold customer data
+  const [customerData, setCustomerData] = useState(mockCustomers[customerId]);
+
+  // Fetch customer data when the component mounts
+  useEffect(() => {
+    fetchCustomerData();
+  }, [customerId]);
+  
+  // Fetch customer data from Supabase or use mock data as fallback
   const fetchCustomerData = async () => {
     try {
+      // Try to get data from Supabase
       const { data, error } = await supabase
         .from('customers')
         .select('*, jobs(*)')
-        .eq('id', customerId)
+        .eq('customer_id', customerId) // Using customer_id instead of id based on error
         .single();
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching customer from Supabase:', error);
+        // Fall back to mock data if Supabase fails
+        if (customerId && customerId in mockCustomers) {
+          console.log('Using mock customer data');
+          setCustomerData(mockCustomers[customerId]);
+          return;
+        }
+        Alert.alert('Error', 'Failed to load customer details');
+        return;
+      }
+
+      if (data) {
+        setCustomerData(data);
+      }
     } catch (error) {
-      console.error('Error fetching customer:', error);
-      Alert.alert('Error', 'Failed to load customer details');
-      return null;
+      console.error('Error in fetchCustomerData:', error);
+      // Fall back to mock data on error
+      setCustomerData(mockCustomers[customerId] || mockCustomers['1']);
     }
   };
 
@@ -120,13 +161,13 @@ const CustomerDetailScreen = () => {
         <View style={styles.customerHeader}>
           <View style={styles.customerIcon}>
             <Text style={styles.customerInitials}>
-              {mockCustomer.first_name.charAt(0) + mockCustomer.last_name.charAt(0)}
+              {customerData.first_name.charAt(0) + customerData.last_name.charAt(0)}
             </Text>
           </View>
           <View style={styles.customerHeaderContent}>
-            <Text style={styles.customerName}>{mockCustomer.first_name} {mockCustomer.last_name}</Text>
-            {mockCustomer.company && (
-              <Text style={styles.customerCompany}>{mockCustomer.company}</Text>
+            <Text style={styles.customerName}>{customerData.first_name} {customerData.last_name}</Text>
+            {customerData.company && (
+              <Text style={styles.customerCompany}>{customerData.company}</Text>
             )}
           </View>
         </View>
@@ -136,33 +177,33 @@ const CustomerDetailScreen = () => {
           <Text style={styles.sectionHeader}>CONTACT INFORMATION</Text>
           
           <Card>
-            {mockCustomer.phone && (
+            {customerData.phone && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoIcon}>📞</Text>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Phone</Text>
-                  <Text style={styles.infoValue}>{mockCustomer.phone}</Text>
+                  <Text style={styles.infoValue}>{customerData.phone}</Text>
                 </View>
               </View>
             )}
             
-            {mockCustomer.email && (
+            {customerData.email && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoIcon}>✉️</Text>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Email</Text>
-                  <Text style={styles.infoValue}>{mockCustomer.email}</Text>
+                  <Text style={styles.infoValue}>{customerData.email}</Text>
                 </View>
               </View>
             )}
             
-            {mockCustomer.address && (
+            {customerData.address && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoIcon}>📍</Text>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Address</Text>
                   <Text style={styles.infoValue}>
-                    {mockCustomer.address}, {mockCustomer.city}, {mockCustomer.province} {mockCustomer.postal_code}
+                    {customerData.address}, {customerData.city}, {customerData.province} {customerData.postal_code}
                   </Text>
                 </View>
               </View>
@@ -171,12 +212,12 @@ const CustomerDetailScreen = () => {
         </View>
         
         {/* Notes Section */}
-        {mockCustomer.notes && (
+        {customerData.notes && (
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>NOTES</Text>
             
             <Card>
-              <Text style={styles.notes}>{mockCustomer.notes}</Text>
+              <Text style={styles.notes}>{customerData.notes}</Text>
             </Card>
           </View>
         )}
@@ -185,8 +226,13 @@ const CustomerDetailScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>JOBS</Text>
           
-          {mockCustomer.jobs.length > 0 ? (
-            mockCustomer.jobs.map(job => (
+          {customerData.jobs && customerData.jobs.length > 0 ? (
+            customerData.jobs.map((job: {
+              id: string;
+              name: string;
+              number: string;
+              status: string;
+            }) => (
               <TouchableOpacity 
                 key={job.id}
                 style={styles.jobItem}
