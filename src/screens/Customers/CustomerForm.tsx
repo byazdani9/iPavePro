@@ -182,13 +182,6 @@ const CustomerForm = () => {
     };
 
     try {
-      // For demo purposes, we'll just show success and navigate back
-      // This allows testing the UI flow even if the database isn't set up
-      Alert.alert('Success', `Customer data saved (Demo Mode)`);
-      navigation.goBack();
-      return;
-
-      /* Uncomment when database is ready:
       if (syncService.isOnline()) {
         // Online - direct save
         if (isEditing) {
@@ -221,7 +214,6 @@ const CustomerForm = () => {
       // Navigate back after save
       Alert.alert('Success', `Customer successfully ${isEditing ? 'updated' : 'created'}!`);
       navigation.goBack();
-      */
     } catch (error) {
       console.error('Error saving customer:', error);
       Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'create'} customer`);
