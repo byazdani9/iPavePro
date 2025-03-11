@@ -180,9 +180,7 @@ const JobsScreen = () => {
       )}
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => {
-          // Handle add new job
-        }}
+        onPress={() => navigation.navigate('JobForm', {})}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>

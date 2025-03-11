@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,9 +8,11 @@ import { AuthForm } from '../components/Auth/AuthForm';
 import DashboardScreen from '../screens/Dashboard/DashboardScreen';
 import JobsScreen from '../screens/Jobs/JobsScreen';
 import JobDetailScreen from '../screens/Jobs/JobDetailScreen';
+import JobForm from '../screens/Jobs/JobForm';
 import CustomersScreen from '../screens/Customers/CustomersScreen';
 import EstimatesScreen from '../screens/Estimates/EstimatesScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
+import NetworkStatusIndicator from '../components/NetworkStatusIndicator';
 import { getSession } from '../store/authSlice';
 import { RootState, AppDispatch } from '../store';
 import { RootStackParamList, MainTabParamList } from './types';
@@ -20,16 +23,18 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
   return (
-    <Tab.Navigator 
-      screenOptions={{
-        tabBarActiveTintColor: '#0066cc',
-        tabBarInactiveTintColor: '#666666',
-        tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e9ecef',
-        },
-      }}
-    >
+    <View style={{ flex: 1 }}>
+      <NetworkStatusIndicator />
+      <Tab.Navigator 
+        screenOptions={{
+          tabBarActiveTintColor: '#0066cc',
+          tabBarInactiveTintColor: '#666666',
+          tabBarStyle: {
+            backgroundColor: '#ffffff',
+            borderTopColor: '#e9ecef',
+          },
+        }}
+      >
       <Tab.Screen 
         name="Dashboard" 
         component={DashboardScreen}
@@ -70,7 +75,8 @@ function MainTabs() {
           headerShown: false,
         }}
       />
-    </Tab.Navigator>
+      </Tab.Navigator>
+    </View>
   );
 }
 
@@ -99,6 +105,11 @@ export default function Navigation() {
             <Stack.Screen 
               name="JobDetail" 
               component={JobDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="JobForm" 
+              component={JobForm}
               options={{ headerShown: false }}
             />
             <Stack.Screen 

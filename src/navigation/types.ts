@@ -7,6 +7,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   JobDetail: { jobId: string };
+  JobForm: { jobId?: string };
   CustomerDetail: { customerId: string };
   EstimateDetail: { estimateId: string };
   AddJob: undefined;

@@ -63,9 +63,17 @@ const JobDetailScreen = () => {
           </TouchableOpacity>
         }
         rightComponent={
-          <TouchableOpacity>
-            <Text style={styles.duplicateText}>Duplicate</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerAction}
+              onPress={() => navigation.navigate('JobForm', { jobId: jobId })}
+            >
+              <Text style={styles.headerActionText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerAction}>
+              <Text style={styles.headerActionText}>Duplicate</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
       
@@ -237,7 +245,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.action.primary,
   },
-  duplicateText: {
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerAction: {
+    marginHorizontal: theme.spacing.xs,
+  },
+  headerActionText: {
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.action.primary,
   },
