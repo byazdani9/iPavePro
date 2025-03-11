@@ -1,69 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, FlatList, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Header, SearchBar, ListItem } from '../../components/ui';
 import theme from '../../theme';
 import { CustomersScreenNavigationProp } from '../../navigation/types';
+import { customerService } from '../../api/databaseService';
+import { Customer } from '../../models/types';
 
-// Temporary mock data for customers
+// Fallback mock data in case database connection fails
 const mockCustomers = [
   {
-    id: '1',
-    firstName: 'Otmar',
-    lastName: 'Taubner',
+    customer_id: '1',
+    first_name: 'Otmar',
+    last_name: 'Taubner',
     company: 'T. Musselman Excavating',
     email: 'otmar@musselman.ca',
     phone: '(416) 555-1234',
-    address: '685 Lake Rd, Toronto ON M4B 1B3',
+    address: '685 Lake Rd',
+    city: 'Toronto',
+    province: 'ON',
+    postal_code: 'M4B 1B3',
   },
   {
-    id: '2',
-    firstName: 'Sagarkumar',
-    lastName: 'Radadiya',
+    customer_id: '2',
+    first_name: 'Sagarkumar',
+    last_name: 'Radadiya',
     company: null,
     email: 'sagarkumar@gmail.com',
     phone: '(416) 555-5678',
     address: null,
+    city: null,
+    province: null,
+    postal_code: null,
   },
   {
-    id: '3',
-    firstName: 'Kyle',
-    lastName: 'Birnie',
+    customer_id: '3',
+    first_name: 'Kyle',
+    last_name: 'Birnie',
     company: 'Bronte Construction',
     email: 'kyle@bronteconstruction.com',
     phone: '(416) 555-9012',
-    address: '1041 Birchmount Rd, Toronto ON M1B 3H2',
-  },
-  {
-    id: '4',
-    firstName: 'Frank',
-    lastName: 'Resch',
-    company: null,
-    email: 'frank.resch@gmail.com',
-    phone: '(905) 555-3456',
-    address: '25 Sewells Rd, Toronto ON M1B 3G5',
-  },
-  {
-    id: '5',
-    firstName: 'Scott',
-    lastName: 'Quinn',
-    company: null,
-    email: 'scott.quinn@yahoo.com',
-    phone: '(416) 555-7890',
-    address: '112F Morse St, Toronto ON M4M 2P8',
-  },
+    address: '1041 Birchmount Rd',
+    city: 'Toronto',
+    province: 'ON',
+    postal_code: 'M1B 3H2',
+  }
 ];
 
 const CustomersScreen = () => {
   const navigation = useNavigation<CustomersScreenNavigationProp>();
   const [searchQuery, setSearchQuery] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch customers from database
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setIsLoading(true);
+        const data = await customerService.getAll();
+        setCustomers(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching customers:', err);
+        setError('Failed to load customers');
+        // Fall back to mock data
+        setCustomers(mockCustomers as unknown as Customer[]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
 
   // Filter customers based on search query
-  const filteredCustomers = mockCustomers.filter(customer => {
+  const filteredCustomers = customers.filter(customer => {
     const query = searchQuery.toLowerCase();
     return (
-      customer.firstName.toLowerCase().includes(query) ||
-      customer.lastName.toLowerCase().includes(query) ||
+      customer.first_name.toLowerCase().includes(query) ||
+      customer.last_name.toLowerCase().includes(query) ||
       (customer.company && customer.company.toLowerCase().includes(query)) ||
       (customer.email && customer.email.toLowerCase().includes(query)) ||
       (customer.phone && customer.phone.toLowerCase().includes(query)) ||
@@ -71,9 +88,9 @@ const CustomersScreen = () => {
     );
   });
 
-  const renderCustomerItem = ({ item }: { item: typeof mockCustomers[0] }) => {
-    const fullName = `${item.firstName} ${item.lastName}`;
-    const subtitle = item.company || (item.address ? item.address.split(',')[0] : item.email);
+  const renderCustomerItem = ({ item }: { item: Customer }) => {
+    const fullName = `${item.first_name} ${item.last_name}`;
+    const subtitle = item.company || (item.address ? item.address : item.email);
     
     return (
       <ListItem
@@ -82,12 +99,12 @@ const CustomersScreen = () => {
         leftIcon={
           <View style={styles.customerIcon}>
             <Text style={styles.customerInitials}>
-              {item.firstName.charAt(0) + item.lastName.charAt(0)}
+              {item.first_name.charAt(0) + item.last_name.charAt(0)}
             </Text>
           </View>
         }
         containerStyle={styles.customerItem}
-        onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}
+        onPress={() => navigation.navigate('CustomerDetail', { customerId: item.customer_id })}
       />
     );
   };
@@ -112,7 +129,7 @@ const CustomersScreen = () => {
       <FlatList
         data={filteredCustomers}
         renderItem={renderCustomerItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.customer_id}
         contentContainerStyle={styles.listContent}
       />
       <TouchableOpacity

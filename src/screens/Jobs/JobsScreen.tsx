@@ -1,87 +1,120 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, FlatList, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { JobsScreenNavigationProp } from '../../navigation/types';
 import { Header, SearchBar, StatusBadge, ListItem } from '../../components/ui';
 import theme from '../../theme';
+import { jobService, customerService } from '../../api/databaseService';
+import { Job, Customer } from '../../models/types';
 
-// Temporary mock data for jobs
+// Temporary mock data for jobs in case database connection fails
 const mockJobs = [
   {
-    id: '1',
+    job_id: '1',
     name: 'Soil Hauling',
     number: 'M23-030',
     status: 'lead',
     amount: 134944.60,
-    customer: 'Otmar Taubner',
-    company: 'T. Musselman Excavating',
+    customer_id: '1',
+    customer: {
+      first_name: 'Otmar',
+      last_name: 'Taubner',
+      company: 'T. Musselman Excavating'
+    },
     address: null,
+    city: null,
+    province: null,
+    postal_code: null
   },
   {
-    id: '2',
-    name: 'Test',
-    number: '2025-1810',
-    status: 'lead',
-    amount: 24747.00,
-    customer: 'Sagarkumar Radadiya',
-    company: null,
-    address: null,
-  },
-  {
-    id: '3',
+    job_id: '2',
     name: 'Material Supply',
     number: '2024-1805',
     status: 'lead',
     amount: 35044.13,
-    customer: 'Stoney Creek Paving',
-    company: null,
+    customer_id: '1',
+    customer: {
+      first_name: 'Otmar',
+      last_name: 'Taubner',
+      company: 'T. Musselman Excavating'
+    },
     address: null,
+    city: null,
+    province: null,
+    postal_code: null
   },
   {
-    id: '4',
+    job_id: '3',
     name: 'Temporary Asphalt Patching phase 2',
     number: '2024-1804',
     status: 'lead',
     amount: 70550.42,
-    customer: 'Kyle Birnie',
-    company: 'Bronte Construction',
-    address: '1041 Birchmount Rd, Toronto ON',
-  },
-  {
-    id: '5',
-    name: 'Storm Line Replacement',
-    number: '2024-1803',
-    status: 'lead',
-    amount: 20599.90,
-    customer: 'Halton Standard Cond Corp',
-    company: '#732',
-    address: '1153 Pioneer Rd, Burlington ON L7M 1K5',
-  },
+    customer_id: '3',
+    customer: {
+      first_name: 'Kyle',
+      last_name: 'Birnie',
+      company: 'Bronte Construction'
+    },
+    address: '1041 Birchmount Rd',
+    city: 'Toronto',
+    province: 'ON',
+    postal_code: 'M1B 3H2'
+  }
 ];
 
 const JobsScreen = () => {
   const navigation = useNavigation<JobsScreenNavigationProp>();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch jobs from database
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setIsLoading(true);
+        const data = await jobService.getAll();
+        setJobs(data);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching jobs:', err);
+        setError('Failed to load jobs');
+        // Fall back to mock data
+        setJobs(mockJobs as unknown as Job[]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
 
   // Filter jobs based on search query
-  const filteredJobs = mockJobs.filter(job => {
+  const filteredJobs = jobs.filter(job => {
     const query = searchQuery.toLowerCase();
     return (
       job.name.toLowerCase().includes(query) ||
-      job.number.toLowerCase().includes(query) ||
-      (job.customer && job.customer.toLowerCase().includes(query)) ||
-      (job.company && job.company.toLowerCase().includes(query))
+      (job.number && job.number.toLowerCase().includes(query)) ||
+      (job.customer && 
+        ((job.customer.first_name && job.customer.first_name.toLowerCase().includes(query)) ||
+         (job.customer.last_name && job.customer.last_name.toLowerCase().includes(query)) ||
+         (job.customer.company && job.customer.company.toLowerCase().includes(query))))
     );
   });
 
-  const renderJobItem = ({ item }: { item: typeof mockJobs[0] }) => {
-    const customerDisplay = item.company 
-      ? `${item.customer}\n${item.company}` 
-      : item.customer;
+  const renderJobItem = ({ item }: { item: Job }) => {
+    // Format customer name for display
+    const customerDisplay = item.customer
+      ? item.customer.company 
+        ? `${item.customer.first_name} ${item.customer.last_name}\n${item.customer.company}` 
+        : `${item.customer.first_name} ${item.customer.last_name}`
+      : 'Unknown Customer';
     
+    // Format address for display
     const addressDisplay = item.address 
-      ? item.address 
+      ? `${item.address}, ${item.city || ''} ${item.province || ''} ${item.postal_code || ''}`.trim() 
       : 'No Job Site';
     
     return (
@@ -95,12 +128,16 @@ const JobsScreen = () => {
         }
         rightContent={
           <View style={styles.rightContent}>
-            <Text style={styles.amount}>${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+            <Text style={styles.amount}>
+              {item.amount 
+                ? `$${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                : 'No amount'}
+            </Text>
             <StatusBadge status="lead" small />
           </View>
         }
         containerStyle={styles.jobItem}
-        onPress={() => navigation.navigate('JobDetail', { jobId: item.id })}
+        onPress={() => navigation.navigate('JobDetail', { jobId: item.job_id })}
       />
     );
   };
@@ -170,7 +207,7 @@ const JobsScreen = () => {
         <FlatList
           data={filteredJobs}
           renderItem={renderJobItem}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.job_id}
           contentContainerStyle={styles.listContent}
         />
       ) : (
