@@ -117,9 +117,7 @@ const CustomersScreen = () => {
       />
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => {
-          // Handle add new customer
-        }}
+        onPress={() => navigation.navigate('CustomerForm', {})}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>

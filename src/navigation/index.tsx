@@ -10,6 +10,8 @@ import JobsScreen from '../screens/Jobs/JobsScreen';
 import JobDetailScreen from '../screens/Jobs/JobDetailScreen';
 import JobForm from '../screens/Jobs/JobForm';
 import CustomersScreen from '../screens/Customers/CustomersScreen';
+import CustomerForm from '../screens/Customers/CustomerForm';
+import CustomerDetailScreen from '../screens/Customers/CustomerDetailScreen';
 import EstimatesScreen from '../screens/Estimates/EstimatesScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import NetworkStatusIndicator from '../components/NetworkStatusIndicator';
@@ -114,7 +116,12 @@ export default function Navigation() {
             />
             <Stack.Screen 
               name="CustomerDetail" 
-              component={CustomersScreen} // This will be replaced with an actual CustomerDetailScreen
+              component={CustomerDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="CustomerForm" 
+              component={CustomerForm}
               options={{ headerShown: false }}
             />
             <Stack.Screen 
