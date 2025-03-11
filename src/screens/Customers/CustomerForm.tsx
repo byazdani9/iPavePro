@@ -114,12 +114,12 @@ const CustomerForm = () => {
         setFormData({
           firstName: data.first_name || '',
           lastName: data.last_name || '',
-          company: data.company || '',
+          company: data.company_name || '', // Use company_name instead of company to match schema
           email: data.email || '',
           phone: data.phone || '',
           address: data.address || '',
           city: data.city || '',
-          province: data.province || 'ON',
+          province: data.state || 'ON', // Note: database field is 'state'
           postalCode: data.postal_code || '',
           notes: data.notes || '',
         });
@@ -167,18 +167,19 @@ const CustomerForm = () => {
       return;
     }
 
+    // Create processed data with the correct field names to match database schema
     const processedData = {
       first_name: formData.firstName,
       last_name: formData.lastName,
-      company: formData.company,
+      company_name: formData.company, // Use company_name instead of company to match schema
       email: formData.email,
       phone: formData.phone,
       address: formData.address,
       city: formData.city,
-      province: formData.province,
+      state: formData.province, // Using state as the field name in the database
       postal_code: formData.postalCode,
-      notes: formData.notes,
-      updated_at: new Date().toISOString(),
+      notes: formData.notes
+      // Let Supabase handle updated_at automatically
     };
 
     try {
@@ -194,20 +195,31 @@ const CustomerForm = () => {
           if (error) throw error;
         } else {
           // Create new customer
-          const { error } = await supabase
+          console.log('Inserting customer with data:', processedData);
+          // Don't manually set created_at, let Supabase handle that automatically
+          const { data, error } = await supabase
             .from('customers')
-            .insert({ ...processedData, created_at: new Date().toISOString() });
+            .insert(processedData)
+            .select();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Supabase error details:', error);
+            throw error;
+          }
+          console.log('Customer created successfully:', data);
         }
       } else {
         // Offline - queue for sync
+        // For offline sync, use the processed data without adding timestamp fields
+        const syncData = isEditing 
+          ? { ...processedData, customer_id: customerId }
+          : processedData;
+        
+        // Let the database handle timestamps automatically
         await syncService.addToSyncQueue({
           table: 'customers',
           operation: isEditing ? 'update' : 'insert',
-          data: isEditing 
-            ? { ...processedData, customer_id: customerId }
-            : { ...processedData, created_at: new Date().toISOString() }
+          data: syncData
         });
       }
 

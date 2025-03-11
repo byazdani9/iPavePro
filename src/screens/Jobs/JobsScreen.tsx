@@ -19,7 +19,7 @@ const mockJobs = [
     customer: {
       first_name: 'Otmar',
       last_name: 'Taubner',
-      company: 'T. Musselman Excavating'
+      company_name: 'T. Musselman Excavating'
     },
     address: null,
     city: null,
@@ -36,7 +36,7 @@ const mockJobs = [
     customer: {
       first_name: 'Otmar',
       last_name: 'Taubner',
-      company: 'T. Musselman Excavating'
+      company_name: 'T. Musselman Excavating'
     },
     address: null,
     city: null,
@@ -53,7 +53,7 @@ const mockJobs = [
     customer: {
       first_name: 'Kyle',
       last_name: 'Birnie',
-      company: 'Bronte Construction'
+      company_name: 'Bronte Construction'
     },
     address: '1041 Birchmount Rd',
     city: 'Toronto',
@@ -100,15 +100,15 @@ const JobsScreen = () => {
       (job.customer && 
         ((job.customer.first_name && job.customer.first_name.toLowerCase().includes(query)) ||
          (job.customer.last_name && job.customer.last_name.toLowerCase().includes(query)) ||
-         (job.customer.company && job.customer.company.toLowerCase().includes(query))))
+         (job.customer.company_name && job.customer.company_name.toLowerCase().includes(query))))
     );
   });
 
   const renderJobItem = ({ item }: { item: Job }) => {
     // Format customer name for display
     const customerDisplay = item.customer
-      ? item.customer.company 
-        ? `${item.customer.first_name} ${item.customer.last_name}\n${item.customer.company}` 
+      ? item.customer.company_name 
+        ? `${item.customer.first_name} ${item.customer.last_name}\n${item.customer.company_name}` 
         : `${item.customer.first_name} ${item.customer.last_name}`
       : 'Unknown Customer';
     

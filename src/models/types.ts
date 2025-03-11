@@ -9,18 +9,34 @@ export interface Customer extends TimestampFields {
   customer_id: string;
   first_name: string;
   last_name: string;
-  company_name?: string;
+  company_name?: string; // Changed from company to company_name to match database schema
   phone?: string;
   email?: string;
   address?: string;
   city?: string;
-  state?: string;
+  state?: string; // Database column is 'state' not 'province'
   postal_code?: string;
   notes?: string;
   coordinates_latitude?: number;
   coordinates_longitude?: number;
-  date_created?: string;
-  last_updated?: string;
+}
+
+// Job model
+export interface Job extends TimestampFields {
+  job_id: string;
+  customer_id: string;
+  name: string;
+  number?: string;
+  status?: string;
+  description?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  amount?: number;
+  start_date?: string;
+  end_date?: string;
+  customer?: Customer;
 }
 
 // Sales Rep model

@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Header, Card, Button } from '../../components/ui';
 import theme from '../../theme';
 import { supabase } from '../../api/supabase';
+import { customerService } from '../../api/databaseService';
 
 type CustomerDetailRouteParams = {
   customerId: string;
@@ -11,45 +12,45 @@ type CustomerDetailRouteParams = {
 
 // Temporary mock data for customers while backend setup is completed
 const mockCustomers: Record<string, {
-  id: string;
+  customer_id: string;
   first_name: string;
   last_name: string;
-  company: string;
+  company_name: string;
   email: string;
   phone: string;
   address: string;
   city: string;
-  province: string;
+  state: string;
   postal_code: string;
   notes: string;
   jobs: Array<{
-    id: string;
+    job_id: string;
     name: string;
     number: string;
     status: string;
   }>;
 }> = {
   '1': {
-    id: '1',
+    customer_id: '1',
     first_name: 'Otmar',
     last_name: 'Taubner',
-    company: 'T. Musselman Excavating',
+    company_name: 'T. Musselman Excavating',
     email: 'otmar@musselman.ca',
     phone: '(416) 555-1234',
     address: '685 Lake Rd',
     city: 'Toronto',
-    province: 'ON',
+    state: 'ON',
     postal_code: 'M4B 1B3',
     notes: 'Prefers communication via email. Has multiple job sites.',
     jobs: [
       {
-        id: '1',
+        job_id: '1',
         name: 'Soil Hauling',
         number: 'M23-030',
         status: 'lead',
       },
       {
-        id: '2',
+        job_id: '2',
         name: 'Material Supply',
         number: '2024-1805',
         status: 'lead',
@@ -66,7 +67,8 @@ const CustomerDetailScreen = () => {
   const customerId = (route.params as CustomerDetailRouteParams)?.customerId || '1';
   
   // State to hold customer data
-  const [customerData, setCustomerData] = useState(mockCustomers[customerId]);
+  const [customerData, setCustomerData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch customer data when the component mounts
   useEffect(() => {
@@ -76,11 +78,24 @@ const CustomerDetailScreen = () => {
   // Fetch customer data from Supabase or use mock data as fallback
   const fetchCustomerData = async () => {
     try {
-      // Try to get data from Supabase
-      const { data, error } = await supabase
+      setIsLoading(true);
+      console.log('Fetching customer details for ID:', customerId);
+      
+      // Try to get data from database service first
+      const data = await customerService.getById(customerId);
+      
+      if (data) {
+        console.log('Customer data found:', data);
+        setCustomerData(data);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If not found, try to get from Supabase directly
+      const { data: supabaseData, error } = await supabase
         .from('customers')
         .select('*, jobs(*)')
-        .eq('customer_id', customerId) // Using customer_id instead of id based on error
+        .eq('customer_id', customerId)
         .single();
 
       if (error) {
@@ -95,13 +110,20 @@ const CustomerDetailScreen = () => {
         return;
       }
 
-      if (data) {
-        setCustomerData(data);
+      if (supabaseData) {
+        // Add province field for UI consistency
+        const mappedData = {
+          ...supabaseData,
+          province: supabaseData.state,
+        };
+        setCustomerData(mappedData);
       }
     } catch (error) {
       console.error('Error in fetchCustomerData:', error);
       // Fall back to mock data on error
       setCustomerData(mockCustomers[customerId] || mockCustomers['1']);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -132,6 +154,25 @@ const CustomerDetailScreen = () => {
       ]
     );
   };
+
+  // If still loading or no data
+  if (isLoading || !customerData) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="Customer"
+          leftComponent={
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>Customers</Text>
+            </TouchableOpacity>
+          }
+        />
+        <View style={styles.loadingContainer}>
+          <Text>Loading customer details...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -166,8 +207,8 @@ const CustomerDetailScreen = () => {
           </View>
           <View style={styles.customerHeaderContent}>
             <Text style={styles.customerName}>{customerData.first_name} {customerData.last_name}</Text>
-            {customerData.company && (
-              <Text style={styles.customerCompany}>{customerData.company}</Text>
+            {customerData.company_name && (
+              <Text style={styles.customerCompany}>{customerData.company_name}</Text>
             )}
           </View>
         </View>
@@ -203,7 +244,7 @@ const CustomerDetailScreen = () => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Address</Text>
                   <Text style={styles.infoValue}>
-                    {customerData.address}, {customerData.city}, {customerData.province} {customerData.postal_code}
+                    {customerData.address}, {customerData.city}, {customerData.state || customerData.province} {customerData.postal_code}
                   </Text>
                 </View>
               </View>
@@ -227,16 +268,11 @@ const CustomerDetailScreen = () => {
           <Text style={styles.sectionHeader}>JOBS</Text>
           
           {customerData.jobs && customerData.jobs.length > 0 ? (
-            customerData.jobs.map((job: {
-              id: string;
-              name: string;
-              number: string;
-              status: string;
-            }) => (
+            customerData.jobs.map((job: any) => (
               <TouchableOpacity 
-                key={job.id}
+                key={job.job_id || job.id}
                 style={styles.jobItem}
-                onPress={() => navigation.navigate('JobDetail', { jobId: job.id })}
+                onPress={() => navigation.navigate('JobDetail', { jobId: job.job_id || job.id })}
               >
                 <Text style={styles.jobIcon}>🏗️</Text>
                 <View style={styles.jobDetails}>
@@ -279,6 +315,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

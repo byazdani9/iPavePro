@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Header, SearchBar, ListItem } from '../../components/ui';
 import theme from '../../theme';
 import { CustomersScreenNavigationProp } from '../../navigation/types';
@@ -13,36 +13,36 @@ const mockCustomers = [
     customer_id: '1',
     first_name: 'Otmar',
     last_name: 'Taubner',
-    company: 'T. Musselman Excavating',
+    company_name: 'T. Musselman Excavating',
     email: 'otmar@musselman.ca',
     phone: '(416) 555-1234',
     address: '685 Lake Rd',
     city: 'Toronto',
-    province: 'ON',
+    state: 'ON',
     postal_code: 'M4B 1B3',
   },
   {
     customer_id: '2',
     first_name: 'Sagarkumar',
     last_name: 'Radadiya',
-    company: null,
+    company_name: null,
     email: 'sagarkumar@gmail.com',
     phone: '(416) 555-5678',
     address: null,
     city: null,
-    province: null,
+    state: null,
     postal_code: null,
   },
   {
     customer_id: '3',
     first_name: 'Kyle',
     last_name: 'Birnie',
-    company: 'Bronte Construction',
+    company_name: 'Bronte Construction',
     email: 'kyle@bronteconstruction.com',
     phone: '(416) 555-9012',
     address: '1041 Birchmount Rd',
     city: 'Toronto',
-    province: 'ON',
+    state: 'ON',
     postal_code: 'M1B 3H2',
   }
 ];
@@ -54,26 +54,42 @@ const CustomersScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch customers from database
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setIsLoading(true);
-        const data = await customerService.getAll();
-        setCustomers(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching customers:', err);
-        setError('Failed to load customers');
-        // Fall back to mock data
-        setCustomers(mockCustomers as unknown as Customer[]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Fetch function for getting customers
+  const fetchCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await customerService.getAll();
+      console.log('Fetched customers:', data.length);
+      setCustomers(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Failed to load customers');
+      // Fall back to mock data
+      setCustomers(mockCustomers as unknown as Customer[]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Fetch customers when component mounts
+  useEffect(() => {
     fetchCustomers();
   }, []);
+  
+  // Refresh customers whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('CustomersScreen focused, refreshing data');
+      fetchCustomers();
+      return () => {}; // cleanup function
+    }, [])
+  );
+  
+  /* Previous implementation - replaced with useFocusEffect for refresh on navigation
+  useEffect(() => {
+  }, []);
+  */
 
   // Filter customers based on search query
   const filteredCustomers = customers.filter(customer => {
@@ -81,16 +97,17 @@ const CustomersScreen = () => {
     return (
       customer.first_name.toLowerCase().includes(query) ||
       customer.last_name.toLowerCase().includes(query) ||
-      (customer.company && customer.company.toLowerCase().includes(query)) ||
+      (customer.company_name && customer.company_name.toLowerCase().includes(query)) ||
       (customer.email && customer.email.toLowerCase().includes(query)) ||
       (customer.phone && customer.phone.toLowerCase().includes(query)) ||
-      (customer.address && customer.address.toLowerCase().includes(query))
+      (customer.address && customer.address.toLowerCase().includes(query)) ||
+      (customer.state && customer.state.toLowerCase().includes(query))
     );
   });
 
   const renderCustomerItem = ({ item }: { item: Customer }) => {
     const fullName = `${item.first_name} ${item.last_name}`;
-    const subtitle = item.company || (item.address ? item.address : item.email);
+    const subtitle = item.company_name || (item.address ? item.address : item.email);
     
     return (
       <ListItem

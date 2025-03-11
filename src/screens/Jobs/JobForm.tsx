@@ -63,10 +63,13 @@ const JobForm = () => {
       const { data, error } = await supabase
         .from('jobs')
         .select('*')
-        .eq('id', jobId)
+        .eq('job_id', jobId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching job from Supabase:', error);
+        throw error;
+      }
       if (data) {
         setFormData({
           name: data.name || '',
@@ -94,13 +97,13 @@ const JobForm = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, first_name, last_name, company')
+        .select('customer_id, first_name, last_name, company')
         .order('last_name', { ascending: true });
 
       if (error) throw error;
       if (data) {
         const formattedCustomers = data.map(customer => ({
-          id: customer.id,
+          id: customer.customer_id,
           name: customer.company 
             ? `${customer.last_name}, ${customer.first_name} (${customer.company})`
             : `${customer.last_name}, ${customer.first_name}`
@@ -163,7 +166,7 @@ const JobForm = () => {
           const { error } = await supabase
             .from('jobs')
             .update(processedData)
-            .eq('id', jobId);
+            .eq('job_id', jobId);
 
           if (error) throw error;
         } else {
@@ -180,7 +183,7 @@ const JobForm = () => {
           table: 'jobs',
           operation: isEditing ? 'update' : 'insert',
           data: isEditing 
-            ? { ...processedData, id: jobId }
+            ? { ...processedData, job_id: jobId }
             : { ...processedData, created_at: new Date().toISOString() }
         });
       }
