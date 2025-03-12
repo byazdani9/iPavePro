@@ -18,12 +18,13 @@ import { syncService } from '../../api/syncService';
 
 type JobFormRouteParams = {
   jobId?: string;
+  customer_id?: string; // Added customer_id parameter
 };
 
 const JobForm = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
-  const { jobId } = (route.params as JobFormRouteParams) || {};
+  const { jobId, customer_id } = (route.params as JobFormRouteParams) || {};
   const isEditing = !!jobId;
 
   // Form state
@@ -50,13 +51,21 @@ const JobForm = () => {
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Load job data if editing existing job
+  // Load job data if editing existing job or set customer if passed
   useEffect(() => {
-    if (jobId) {
-      fetchJobData();
-    }
-    fetchCustomers();
-  }, [jobId]);
+    // Fetch customer list first
+    fetchCustomers().then(() => {
+      if (jobId) {
+        // If editing, load job data
+        fetchJobData();
+      } else if (customer_id) {
+        // If not editing but customer_id is provided, select that customer
+        console.log('Pre-selecting customer from params:', customer_id);
+        setSelectedCustomer(customer_id);
+        setFormData(prev => ({ ...prev, customer_id }));
+      }
+    });
+  }, [jobId, customer_id]);
 
   const fetchJobData = async () => {
     try {
