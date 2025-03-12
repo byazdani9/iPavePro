@@ -1,55 +1,214 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Header, Card, StatusBadge, Button } from '../../components/ui';
 import theme from '../../theme';
 import { JobDetailScreenProps } from '../../navigation/types';
+import { supabase } from '../../api/supabase';
 
-// Mock data for a single job
-const mockJob = {
-  id: '1',
-  name: 'Soil Hauling',
-  number: 'M23-030',
-  status: 'lead',
-  amount: 134944.60,
-  customer: {
-    id: '1',
-    name: 'Otmar Taubner',
-    company: 'T. Musselman Excavating',
-    address: '685 Lake Rd, Toronto ON M4B 1B3',
-    email: 'otmar@musselman.ca',
-    phone: '(416) 555-1234',
-  },
-  jobSite: {
-    address: '685 Lake Rd, Toronto ON M4B 1B3',
-    notes: 'Access through rear gate. Call before arrival.',
-  },
-  estimates: [
-    {
-      id: '1',
-      name: 'Site Preparation',
-      amount: 45000.00,
-      date: '2024-03-05',
-    },
-    {
-      id: '2',
-      name: 'Material Supply',
-      amount: 89944.60,
-      date: '2024-03-07',
-    },
-  ],
-  purchaseOrders: [],
-  invoices: [],
-  payments: [],
-};
+// Interface for job data
+interface JobData {
+  job_id: string;
+  name: string;
+  number: string;
+  status: string;
+  amount: number | null;
+  customer_id: string;
+  description?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  start_date?: string;
+  end_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  customer?: {
+    customer_id: string;
+    first_name: string;
+    last_name: string;
+    company_name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+  };
+}
 
 const JobDetailScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
-  
-  // In a real app, we would fetch the job data based on the jobId from the route params
-  // For now, we're using mock data
   const jobId = (route.params as { jobId: string })?.jobId || '1';
+  
+  // State for job data
+  const [job, setJob] = useState<JobData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch job data when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchJobData();
+      return () => {};
+    }, [jobId])
+  );
+  
+  // Function to fetch job data from Supabase
+  const fetchJobData = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Fetching job with ID:', jobId);
+      
+      // Get job data
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('job_id', jobId)
+        .single();
+      
+      if (jobError) {
+        console.error('Error fetching job:', jobError);
+        Alert.alert('Error', 'Failed to load job details');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!jobData) {
+        console.error('No job found with ID:', jobId);
+        Alert.alert('Error', 'Job not found');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get customer data for this job
+      if (jobData.customer_id) {
+        const { data: customerData, error: customerError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('customer_id', jobData.customer_id)
+          .single();
+          
+        if (customerError) {
+          console.error('Error fetching customer for job:', customerError);
+        } else if (customerData) {
+          // Add customer to job data
+          jobData.customer = customerData;
+        }
+      }
+      
+      console.log('Job data loaded:', jobData);
+      setJob(jobData);
+    } catch (error) {
+      console.error('Error in fetchJobData:', error);
+      Alert.alert('Error', 'Failed to load job details');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to format customer name
+  const formatCustomerName = (customer?: JobData['customer']) => {
+    if (!customer) return 'No Customer';
+    return `${customer.first_name} ${customer.last_name}`;
+  };
+
+  // Function to format customer full address
+  const formatAddress = (customer?: JobData['customer']) => {
+    if (!customer || !customer.address) return 'No address';
+    return `${customer.address}, ${customer.city || ''} ${customer.state || ''}${customer.postal_code ? ' ' + customer.postal_code : ''}`;
+  };
+  
+  // Function to format job site address
+  const formatJobSiteAddress = (job?: JobData | null) => {
+    if (!job || !job.address) return 'No job site address';
+    return `${job.address}, ${job.city || ''} ${job.province || ''}${job.postal_code ? ' ' + job.postal_code : ''}`;
+  };
+  
+  // Handle job deletion
+  const handleDeleteJob = () => {
+    Alert.alert(
+      'Delete Job',
+      'Are you sure you want to delete this job? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              const { error } = await supabase
+                .from('jobs')
+                .delete()
+                .eq('job_id', jobId);
+                
+              if (error) {
+                console.error('Error deleting job:', error);
+                Alert.alert('Error', 'Failed to delete job');
+                setIsLoading(false);
+                return;
+              }
+              
+              Alert.alert('Success', 'Job deleted successfully');
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error in handleDeleteJob:', error);
+              Alert.alert('Error', 'Failed to delete job');
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+  
+  // Show loading indicator while data is being fetched
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="Job"
+          leftComponent={
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>Jobs</Text>
+            </TouchableOpacity>
+          }
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Loading job details...</Text>
+        </View>
+      </View>
+    );
+  }
+  
+  // Show message if no job data is available
+  if (!job) {
+    return (
+      <View style={styles.container}>
+        <Header
+          title="Job"
+          leftComponent={
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>Jobs</Text>
+            </TouchableOpacity>
+          }
+        />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>No job data available</Text>
+          <Button
+            title="Go back"
+            variant="primary"
+            onPress={() => navigation.goBack()}
+          />
+        </View>
+      </View>
+    );
+  }
   
   return (
     <View style={styles.container}>
@@ -66,7 +225,7 @@ const JobDetailScreen = () => {
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.headerAction}
-              onPress={() => navigation.navigate('JobForm', { jobId: jobId })}
+              onPress={() => navigation.navigate('JobForm', { jobId: job.job_id })}
             >
               <Text style={styles.headerActionText}>Edit</Text>
             </TouchableOpacity>
@@ -84,9 +243,9 @@ const JobDetailScreen = () => {
             <Text style={styles.jobIconText}>🏠</Text>
           </View>
           <View style={styles.jobHeaderContent}>
-            <Text style={styles.jobName}>{mockJob.name}</Text>
-            <Text style={styles.jobNumber}>{mockJob.number}</Text>
-            <StatusBadge status="lead" />
+            <Text style={styles.jobName}>{job.name || 'Untitled Job'}</Text>
+            <Text style={styles.jobNumber}>{job.number || 'No job number'}</Text>
+            <StatusBadge status={(job.status as 'lead' | 'contract' | 'started' | 'completed' | 'closed') || 'lead'} />
           </View>
         </View>
         
@@ -94,31 +253,43 @@ const JobDetailScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>CUSTOMER</Text>
           
-          {mockJob.customer ? (
+          {job.customer ? (
             <Card>
               <View style={styles.customerInfo}>
                 <View style={styles.customerIconContainer}>
                   <Text style={styles.customerIcon}>👤</Text>
                 </View>
                 <View style={styles.customerDetails}>
-                  <Text style={styles.customerName}>{mockJob.customer.name}</Text>
-                  {mockJob.customer.company && (
-                    <Text style={styles.customerCompany}>{mockJob.customer.company}</Text>
+                  <Text style={styles.customerName}>
+                    {formatCustomerName(job.customer)}
+                  </Text>
+                  {job.customer.company_name && (
+                    <Text style={styles.customerCompany}>
+                      {job.customer.company_name}
+                    </Text>
                   )}
                 </View>
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('CustomerForm', { customerId: job.customer_id })}
+                >
                   <Text style={styles.editText}>Edit</Text>
                 </TouchableOpacity>
               </View>
               
-              <TouchableOpacity style={styles.contactsButton}>
-                <Text style={styles.contactsButtonText}>📞 Contacts</Text>
-                <Text style={styles.contactsCount}>1 ›</Text>
+              <TouchableOpacity 
+                style={styles.contactsButton}
+                onPress={() => navigation.navigate('CustomerDetail', { customerId: job.customer_id })}
+              >
+                <Text style={styles.contactsButtonText}>📞 View Customer</Text>
+                <Text style={styles.contactsCount}>›</Text>
               </TouchableOpacity>
             </Card>
           ) : (
             <Card>
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => navigation.navigate('CustomerForm')}
+              >
                 <Text style={styles.addButtonText}>+ Add Customer</Text>
               </TouchableOpacity>
             </Card>
@@ -129,27 +300,36 @@ const JobDetailScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>JOB SITE</Text>
           
-          {mockJob.jobSite ? (
+          {job.address ? (
             <Card>
               <View style={styles.jobSiteInfo}>
                 <View style={styles.jobSiteIconContainer}>
                   <Text style={styles.jobSiteIcon}>📍</Text>
                 </View>
                 <View style={styles.jobSiteDetails}>
-                  <Text style={styles.jobSiteAddress}>{mockJob.jobSite.address}</Text>
+                  <Text style={styles.jobSiteAddress}>
+                    {formatJobSiteAddress(job)}
+                  </Text>
                 </View>
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('JobForm', { jobId: job.job_id })}
+                >
                   <Text style={styles.editText}>Edit</Text>
                 </TouchableOpacity>
               </View>
               
-              <View style={styles.jobSiteNotes}>
-                <Text style={styles.jobSiteNotesText}>{mockJob.jobSite.notes}</Text>
-              </View>
+              {job.description && (
+                <View style={styles.jobSiteNotes}>
+                  <Text style={styles.jobSiteNotesText}>{job.description}</Text>
+                </View>
+              )}
             </Card>
           ) : (
             <Card>
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => navigation.navigate('JobForm', { jobId: job.job_id })}
+              >
                 <Text style={styles.addButtonText}>+ Add Job Site</Text>
               </TouchableOpacity>
             </Card>
@@ -160,21 +340,10 @@ const JobDetailScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ESTIMATES AND DOCUMENTS</Text>
           
-          {mockJob.estimates.map(estimate => (
-            <TouchableOpacity 
-              key={estimate.id}
-              style={styles.estimateItem}
-              onPress={() => navigation.navigate('EstimateDetail', { estimateId: estimate.id })}
-            >
-              <Text style={styles.estimateIcon}>📄</Text>
-              <Text style={styles.estimateName}>{estimate.name}</Text>
-              <Text style={styles.estimateAmount}>
-                ${estimate.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ›
-              </Text>
-            </TouchableOpacity>
-          ))}
-          
-          <TouchableOpacity style={styles.addEstimateButton}>
+        <TouchableOpacity 
+            style={styles.addEstimateButton}
+            onPress={() => navigation.navigate('EstimateForm', { jobId: job.job_id })}
+          >
             <Text style={styles.addEstimateButtonText}>+ Add Estimate</Text>
           </TouchableOpacity>
         </View>
@@ -187,7 +356,12 @@ const JobDetailScreen = () => {
             <Text style={styles.financialIcon}>📊</Text>
             <Text style={styles.financialName}>Job Total</Text>
             <Text style={styles.financialAmount}>
-              ${mockJob.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {job.amount 
+                ? `$${job.amount.toLocaleString(undefined, { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                  })}` 
+                : 'No amount'}
             </Text>
           </View>
           
@@ -227,6 +401,14 @@ const JobDetailScreen = () => {
             fullWidth
             style={styles.actionButton}
           />
+          
+          <Button
+            title="Delete Job"
+            variant="danger"
+            onPress={handleDeleteJob}
+            fullWidth
+            style={styles.actionButton}
+          />
         </View>
       </ScrollView>
     </View>
@@ -240,6 +422,22 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+  },
+  loadingText: {
+    marginTop: theme.spacing.md,
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.text.secondary,
+  },
+  errorText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.action.danger,
+    marginBottom: theme.spacing.lg,
   },
   backButtonText: {
     fontSize: theme.typography.fontSize.md,
