@@ -97,15 +97,15 @@ const JobForm = () => {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('customer_id, first_name, last_name, company')
+        .select('customer_id, first_name, last_name, company_name')
         .order('last_name', { ascending: true });
 
       if (error) throw error;
       if (data) {
         const formattedCustomers = data.map(customer => ({
           id: customer.customer_id,
-          name: customer.company 
-            ? `${customer.last_name}, ${customer.first_name} (${customer.company})`
+          name: customer.company_name 
+            ? `${customer.last_name}, ${customer.first_name} (${customer.company_name})`
             : `${customer.last_name}, ${customer.first_name}`
         }));
         setCustomers(formattedCustomers);
@@ -155,7 +155,7 @@ const JobForm = () => {
     const processedData = {
       ...formData,
       amount: formData.amount ? parseFloat(formData.amount) : null,
-      updated_at: new Date().toISOString(),
+      // Let Supabase handle updated_at field automatically
     };
 
     try {
@@ -173,7 +173,7 @@ const JobForm = () => {
           // Create new job
           const { error } = await supabase
             .from('jobs')
-            .insert({ ...processedData, created_at: new Date().toISOString() });
+            .insert(processedData);
 
           if (error) throw error;
         }
@@ -184,7 +184,7 @@ const JobForm = () => {
           operation: isEditing ? 'update' : 'insert',
           data: isEditing 
             ? { ...processedData, job_id: jobId }
-            : { ...processedData, created_at: new Date().toISOString() }
+            : processedData
         });
       }
 
